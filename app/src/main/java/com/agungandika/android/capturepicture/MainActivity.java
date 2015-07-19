@@ -3,6 +3,7 @@ package com.agungandika.android.capturepicture;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Bundle;
@@ -17,6 +18,8 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
+
+import com.android.camera.CropImageIntentBuilder;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -36,7 +39,6 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
     private File outputImageFile = null;
     private File outputDirs;
     private String imageTimeStamp;
-    private Intent cropIntent;
 
     // jpeg output quality
     private int JPEG_OUTPUT_QUALITY = 70;
@@ -145,12 +147,10 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
             if (requestCode == CAMERA_CAPTURE) {
                 // create new instance with same name as saved pic before we start crop operation
                 try {
-                    File targetCropImg = new File(outputDirs, "KDG_NEWS_" + imageTimeStamp + ".jpg");
-
                     //Crop the captured image using an other intent
                     try {
                         // the user's device may not support cropping
-                        cropCapturedImage(Uri.fromFile(targetCropImg));
+                        cropCapturedImage(Uri.fromFile(outputImageFile));
                     } catch (ActivityNotFoundException aNFE) {
                         //display an error message if user device doesn't support
                         Log.e(DBG_SAVE_CROP_ERROR, "No Crop Activity on this device");
@@ -169,15 +169,11 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
             } else if (requestCode == PIC_CROP) {
                 //get the returned data
                 try {
-                    Bundle extras = data.getExtras();
-                    //get the cropped bitmap
-                    Bitmap thePic = extras.getParcelable("data");
-
-                    //retrieve a reference to the ImageView
+                    // retrieve a reference to the ImageView
                     ImageView picView = (ImageView) findViewById(R.id.picture);
-                    //display the returned cropped image
-                    picView.setImageBitmap(thePic);
                     picView.setDrawingCacheEnabled(true);
+                    // display the returned cropped image
+                    picView.setImageBitmap(BitmapFactory.decodeFile(outputImageFile.getAbsolutePath()));
 
                     // save cropped image to external directory
                     Bitmap croppedImg = ((BitmapDrawable) picView.getDrawable()).getBitmap();
@@ -190,9 +186,9 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
                             fOut.flush();
                             fOut.close();
 
-                            Log.d(DBG_COMPRESS_CROP, "Saved file: " + fOut.toString());
+                            Log.d(DBG_COMPRESS_CROP, "Saved file: " + outputImageFile.toString());
                             Toast.makeText(MainActivity.this, "Successful save cropped image @ " +
-                                    fOut.toString(), Toast.LENGTH_SHORT).show();
+                                    outputImageFile.toString(), Toast.LENGTH_SHORT).show();
                         } catch (Exception e) {
                             e.printStackTrace();
                             Log.e(DBG_COMPRESS_ERROR, "Fail to compress cropped image: " +
@@ -216,26 +212,16 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
         }
     }
 
+    // disable temporary
     private void cropCapturedImage(Uri picUri) {
         Log.d("CROPPING", "Starting to crop image " + picUri.toString());
 
         try {
-            //call the standard crop action intent (the user device may not support it)
-            cropIntent = new Intent("com.android.camera.action.CROP");
-            //indicate image type and Uri
-            cropIntent.setDataAndType(picUri, "image/*");
-            //set crop properties
-            cropIntent.putExtra("crop", "true");
-            //indicate aspect of desired crop
-            cropIntent.putExtra("aspectX", 1);
-            cropIntent.putExtra("aspectY", 1);
-            //indicate output X and Y for resize picture
-            cropIntent.putExtra("outputX", 256);
-            cropIntent.putExtra("outputY", 256);
-            //retrieve data on return
-            cropIntent.putExtra("return-data", true);
-            //start the activity - we handle returning in onActivityResult
-            startActivityForResult(cropIntent, PIC_CROP);
+            CropImageIntentBuilder cropImage = new CropImageIntentBuilder(200, 200, picUri);
+            cropImage.setOutlineColor(0xFF03A9F4);
+            cropImage.setSourceImage(picUri);
+            cropImage.setOutputFormat("JPEG");
+            startActivityForResult(cropImage.getIntent(getApplicationContext()), PIC_CROP);
         } catch (ActivityNotFoundException anfe) {
             //display an error message
             Log.e(ERR_FAIL_TO_CROP, "Fail to Crop because: " + anfe.getMessage().toString());
