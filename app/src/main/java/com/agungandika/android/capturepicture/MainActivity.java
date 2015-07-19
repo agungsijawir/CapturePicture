@@ -25,6 +25,8 @@ import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import static android.os.Environment.isExternalStorageRemovable;
+
 public class MainActivity extends AppCompatActivity implements OnClickListener {
 
     //keep track of camera capture intent
@@ -34,6 +36,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
     private File outputImageFile = null;
     private File outputDirs;
     private String imageTimeStamp;
+    private Intent cropIntent;
 
     // jpeg output quality
     private int JPEG_OUTPUT_QUALITY = 70;
@@ -87,9 +90,12 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
                 Intent captureIntent = new Intent("android.media.action.IMAGE_CAPTURE");
 
                 //create instance of File with same name we created before to get image from storage
-
                 try {
-                    outputDirs = new File(Environment.getExternalStorageDirectory() + File.separator + "KDG" + File.separator);
+                    if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()) || !isExternalStorageRemovable()) {
+                        outputDirs = new File(getExternalCacheDir() + File.separator + "KDG" + File.separator);
+                    } else {
+                        outputDirs = new File(getApplicationContext().getCacheDir().getPath() + File.separator + "KDG" + File.separator);
+                    }
                 } catch (Exception e) {
                     outputDirs = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + File.separator);
                     Toast.makeText(MainActivity.this, "Seems we cannot create directory on external storage, we will use public directory instead @ " + outputDirs.toString(), Toast.LENGTH_SHORT).show();
@@ -160,43 +166,49 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
                     Toast.makeText(MainActivity.this, "Sorry, we cannot save cropped image for you", Toast.LENGTH_SHORT).show();
                     Log.e(DBG_SAVE_CROP_ERROR, "Failt to create output image because: " + e.getMessage().toString());
                 }
-
             } else if (requestCode == PIC_CROP) {
                 //get the returned data
-                Bundle extras = data.getExtras();
-                //get the cropped bitmap
-                Bitmap thePic = extras.getParcelable("data");
-
-                //retrieve a reference to the ImageView
-                ImageView picView = (ImageView) findViewById(R.id.picture);
-                //display the returned cropped image
-                picView.setImageBitmap(thePic);
-                picView.setDrawingCacheEnabled(true);
-
-                // save cropped image to external directory
-                Bitmap croppedImg = ((BitmapDrawable) picView.getDrawable()).getBitmap();
-
                 try {
-                    fOut = new FileOutputStream(outputImageFile);
+                    Bundle extras = data.getExtras();
+                    //get the cropped bitmap
+                    Bitmap thePic = extras.getParcelable("data");
+
+                    //retrieve a reference to the ImageView
+                    ImageView picView = (ImageView) findViewById(R.id.picture);
+                    //display the returned cropped image
+                    picView.setImageBitmap(thePic);
+                    picView.setDrawingCacheEnabled(true);
+
+                    // save cropped image to external directory
+                    Bitmap croppedImg = ((BitmapDrawable) picView.getDrawable()).getBitmap();
 
                     try {
-                        croppedImg.compress(Bitmap.CompressFormat.JPEG, JPEG_OUTPUT_QUALITY, fOut);
-                        fOut.flush();
-                        fOut.close();
+                        fOut = new FileOutputStream(outputImageFile);
 
-                        Log.d(DBG_COMPRESS_CROP, "Saved file: " + fOut.toString());
-                        Toast.makeText(MainActivity.this, "Successful save cropped image @ " +
-                                fOut.toString(), Toast.LENGTH_SHORT).show();
-                    } catch (Exception e) {
+                        try {
+                            croppedImg.compress(Bitmap.CompressFormat.JPEG, JPEG_OUTPUT_QUALITY, fOut);
+                            fOut.flush();
+                            fOut.close();
+
+                            Log.d(DBG_COMPRESS_CROP, "Saved file: " + fOut.toString());
+                            Toast.makeText(MainActivity.this, "Successful save cropped image @ " +
+                                    fOut.toString(), Toast.LENGTH_SHORT).show();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            Log.e(DBG_COMPRESS_ERROR, "Fail to compress cropped image: " +
+                                    e.getMessage().toString());
+                        }
+                    } catch (FileNotFoundException e) {
                         e.printStackTrace();
-                        Log.e(DBG_COMPRESS_ERROR, "Fail to compress cropped image: " +
-                                e.getMessage().toString());
+                        Log.e(DBG_SAVE_CROP, "Fail to save cropped image: " + e.getMessage().toString());
+                        Toast.makeText(MainActivity.this, "Error occured. Please try again later.",
+                                Toast.LENGTH_SHORT).show();
                     }
-                } catch (FileNotFoundException e) {
-                    e.printStackTrace();
-                    Log.e(DBG_SAVE_CROP, "Fail to save cropped image: " + e.getMessage().toString());
-                    Toast.makeText(MainActivity.this, "Error occured. Please try again later.",
-                            Toast.LENGTH_SHORT).show();
+                } catch (Exception e) {
+                    Log.e(DBG_SAVE_CROP_ERROR, "Fail to save because no data/extra on intent!");
+                    Log.e(DBG_SAVE_CROP_ERROR, "Error message: " + e.getMessage().toString());
+                    Toast.makeText(MainActivity.this, "Fail to save because no data/extra on intent! " +
+                            "Please check debug log for error details.", Toast.LENGTH_SHORT).show();
                 }
             }
         } else if (resultCode == RESULT_CANCELED) {
@@ -209,9 +221,9 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
 
         try {
             //call the standard crop action intent (the user device may not support it)
-            Intent cropIntent = new Intent("com.android.camera.action.CROP");
+            cropIntent = new Intent("com.android.camera.action.CROP");
             //indicate image type and Uri
-            Intent intent = cropIntent.setDataAndType(picUri, "image/*");
+            cropIntent.setDataAndType(picUri, "image/*");
             //set crop properties
             cropIntent.putExtra("crop", "true");
             //indicate aspect of desired crop
