@@ -87,7 +87,13 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
                 Intent captureIntent = new Intent("android.media.action.IMAGE_CAPTURE");
 
                 //create instance of File with same name we created before to get image from storage
-                outputDirs = new File(Environment.getExternalStorageDirectory() + File.separator + "KDG" + File.separator);
+
+                try {
+                    outputDirs = new File(Environment.getExternalStorageDirectory() + File.separator + "KDG" + File.separator);
+                } catch (Exception e) {
+                    outputDirs = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + File.separator);
+                    Toast.makeText(MainActivity.this, "Seems we cannot create directory on external storage, we will use public directory instead @ " + outputDirs.toString(), Toast.LENGTH_SHORT).show();
+                }
 
                 try {
                     if (!outputDirs.exists()) {
@@ -132,22 +138,29 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
             //user is returning from capturing an image using the camera
             if (requestCode == CAMERA_CAPTURE) {
                 // create new instance with same name as saved pic before we start crop operation
-                File targetCropImg = new File(outputDirs, "KDG_NEWS_" + imageTimeStamp + ".jpg");
-                //Crop the captured image using an other intent
                 try {
-                    // the user's device may not support cropping
-                    cropCapturedImage(Uri.fromFile(targetCropImg));
-                } catch (ActivityNotFoundException aNFE) {
-                    //display an error message if user device doesn't support
-                    Log.e(DBG_SAVE_CROP_ERROR, "No Crop Activity on this device");
-                    Toast.makeText(MainActivity.this, "No Crop Activity on this device",
-                            Toast.LENGTH_SHORT).show();
+                    File targetCropImg = new File(outputDirs, "KDG_NEWS_" + imageTimeStamp + ".jpg");
+
+                    //Crop the captured image using an other intent
+                    try {
+                        // the user's device may not support cropping
+                        cropCapturedImage(Uri.fromFile(targetCropImg));
+                    } catch (ActivityNotFoundException aNFE) {
+                        //display an error message if user device doesn't support
+                        Log.e(DBG_SAVE_CROP_ERROR, "No Crop Activity on this device");
+                        Toast.makeText(MainActivity.this, "No Crop Activity on this device",
+                                Toast.LENGTH_SHORT).show();
+                    } catch (Exception e) {
+                        Log.e(DBG_SAVE_CROP_ERROR, "Fail to save cropped image because: " +
+                                e.getMessage().toString());
+                        Toast.makeText(MainActivity.this, "Fail to save cropped image because: " +
+                                e.getMessage().toString(), Toast.LENGTH_SHORT).show();
+                    }
                 } catch (Exception e) {
-                    Log.e(DBG_SAVE_CROP_ERROR, "Fail to save cropped image because: " +
-                            e.getMessage().toString());
-                    Toast.makeText(MainActivity.this, "Fail to save cropped image because: " +
-                            e.getMessage().toString(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Sorry, we cannot save cropped image for you", Toast.LENGTH_SHORT).show();
+                    Log.e(DBG_SAVE_CROP_ERROR, "Failt to create output image because: " + e.getMessage().toString());
                 }
+
             } else if (requestCode == PIC_CROP) {
                 //get the returned data
                 Bundle extras = data.getExtras();
