@@ -3,7 +3,6 @@ package com.agungandika.android.capturepicture;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Bundle;
@@ -19,7 +18,7 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
 
-import com.android.camera.CropImageIntentBuilder;
+import com.soundcloud.android.crop.Crop;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -149,8 +148,8 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
                 try {
                     //Crop the captured image using an other intent
                     try {
-                        // the user's device may not support cropping
-                        cropCapturedImage(Uri.fromFile(outputImageFile));
+                        Crop.of(Uri.fromFile(outputImageFile), Uri.fromFile(outputImageFile))
+                                .start(MainActivity.this);
                     } catch (ActivityNotFoundException aNFE) {
                         //display an error message if user device doesn't support
                         Log.e(DBG_SAVE_CROP_ERROR, "No Crop Activity on this device");
@@ -166,14 +165,14 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
                     Toast.makeText(MainActivity.this, "Sorry, we cannot save cropped image for you", Toast.LENGTH_SHORT).show();
                     Log.e(DBG_SAVE_CROP_ERROR, "Failt to create output image because: " + e.getMessage().toString());
                 }
-            } else if (requestCode == PIC_CROP) {
+            } else if (requestCode == Crop.REQUEST_CROP) {
                 //get the returned data
                 try {
                     // retrieve a reference to the ImageView
                     ImageView picView = (ImageView) findViewById(R.id.picture);
                     picView.setDrawingCacheEnabled(true);
                     // display the returned cropped image
-                    picView.setImageBitmap(BitmapFactory.decodeFile(outputImageFile.getAbsolutePath()));
+                    picView.setImageURI(Crop.getOutput(data));
 
                     // save cropped image to external directory
                     Bitmap croppedImg = ((BitmapDrawable) picView.getDrawable()).getBitmap();
@@ -209,27 +208,6 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
             }
         } else if (resultCode == RESULT_CANCELED) {
             Toast.makeText(MainActivity.this, "Action cancelled!", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    // disable temporary
-    private void cropCapturedImage(Uri picUri) {
-        Log.d("CROPPING", "Starting to crop image " + picUri.toString());
-
-        try {
-            CropImageIntentBuilder cropImage = new CropImageIntentBuilder(200, 200, picUri);
-            cropImage.setOutlineColor(0xFF03A9F4);
-            cropImage.setSourceImage(picUri);
-            cropImage.setOutputFormat("JPEG");
-            startActivityForResult(cropImage.getIntent(getApplicationContext()), PIC_CROP);
-        } catch (ActivityNotFoundException anfe) {
-            //display an error message
-            Log.e(ERR_FAIL_TO_CROP, "Fail to Crop because: " + anfe.getMessage().toString());
-            Toast.makeText(MainActivity.this, "Fail to crop, because your device seems doesn't support crop action!", Toast.LENGTH_SHORT).show();
-        } catch (Exception foo) {
-            Log.e(ERR_FAIL_TO_CROP, "Fail to crop :( -- " + foo.getMessage().toString());
-            Toast.makeText(MainActivity.this, "Fail to crop: " + foo.getMessage().toString(),
-                    Toast.LENGTH_SHORT).show();
         }
     }
 }
