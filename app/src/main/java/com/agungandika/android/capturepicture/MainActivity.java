@@ -33,7 +33,6 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
 
     //keep track of camera capture intent
     final int CAMERA_CAPTURE = 1;
-    final int PIC_CROP = 2;
 
     private File outputImageFile = null;
     private File outputDirs;
@@ -44,6 +43,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
 
     // debug log flag
     private String ERR_FAIL_TO_CROP = "FAIL_TO_CROP";
+
     private String DBG_SAVE_CROP = "SAVE_CROP";
     private String DBG_SAVE_CROP_ERROR = "SAVE_CROP_ERROR";
     private String DBG_COMPRESS_CROP = "COMPRESS_CROP";
